@@ -7,39 +7,52 @@ class LoadingScreen extends StatefulWidget {
 
 class _LoadingScreenState extends State<LoadingScreen>
     with SingleTickerProviderStateMixin {
-  AnimationController _controller;
-  Animation<Color> _animationLeft;
-  Animation<Color> _animationRight;
+  AnimationController? _controller;
+  Animation<Color>? _animationLeft;
+  Animation<Color>? _animationRight;
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
         vsync: this, duration: Duration(milliseconds: 1500));
-    _animationLeft =
-        ColorTween(begin: Colors.grey[700], end: Colors.grey.shade100)
-            .animate(_controller);
 
-    _animationRight =
-        ColorTween(begin: Colors.grey.shade100, end: Colors.grey[700])
-            .animate(_controller);
+    _animationLeft = TweenSequence<Color>([
+    TweenSequenceItem(
+      tween: Tween<Color>(
+        begin: Colors.grey[700],
+        end: Colors.grey.shade100,
+      ),
+      weight: 1,
+    ),
+  ]).animate(_controller!);
 
-    _controller.forward();
+  _animationRight = TweenSequence<Color>([
+    TweenSequenceItem(
+      tween: Tween<Color>(
+        begin: Colors.grey.shade100,
+        end: Colors.grey[700],
+      ),
+      weight: 1,
+    ),
+  ]).animate(_controller!);
 
-    _controller.addListener(listener);
+    _controller!.forward();
+
+    _controller!.addListener(listener);
   }
 
   void listener() {
-    if (_controller.status == AnimationStatus.completed) {
-      _controller.reverse();
-    } else if (_controller.status == AnimationStatus.dismissed) {
-      _controller.forward();
+    if (_controller!.status == AnimationStatus.completed) {
+      _controller!.reverse();
+    } else if (_controller!.status == AnimationStatus.dismissed) {
+      _controller!.forward();
     }
     this.setState(() {});
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller!.dispose();
     super.dispose();
   }
 
@@ -50,7 +63,7 @@ class _LoadingScreenState extends State<LoadingScreen>
       body: ShaderMask(
         shaderCallback: (rect) {
           return LinearGradient(
-            colors: [_animationLeft.value, _animationRight.value],
+            colors: [_animationLeft!.value, _animationRight!.value],
           ).createShader(rect);
         },
         
@@ -144,7 +157,7 @@ class _LoadingScreenState extends State<LoadingScreen>
       bottomNavigationBar: Container(
         // height: 100, //0.1 * MediaQuery.of(context).size.height,
         decoration: BoxDecoration(
-          color: Theme.of(context).backgroundColor,
+          color: Theme.of(context).colorScheme.background,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(30.0),
             topRight: Radius.circular(30.0),

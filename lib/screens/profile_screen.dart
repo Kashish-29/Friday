@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:flutter_share/flutter_share.dart';
 import 'package:friday/constants.dart';
 import 'package:friday/models/users.dart';
 import 'package:friday/screens/onboarding_page.dart';
+import 'package:friday/screens/settings_screen.dart';
 import 'package:friday/services/authentication.dart';
 import 'package:friday/services/facebookAuthentication.dart';
 import 'package:friday/services/googleAuthentication.dart';
@@ -12,6 +14,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:path/path.dart' as Path;
 import 'package:friday/services/user_db_services.dart';
 
@@ -23,16 +26,17 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   ImagePicker _imagePicker = ImagePicker();
   Reference _storageReference = FirebaseStorage.instance.ref();
+  Map<String, dynamic> currentUser = {};
+  String bio = '';
 
   void getImage() async {
-    XFile image = await _imagePicker.pickImage(source: ImageSource.gallery);
+    XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
 
     if (image == null) {
       return;
     }
 
     String imagePath = image.path;
-
     File file = File(imagePath);
 
     uploadPictures(file);
@@ -44,11 +48,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _storageReference.child('${Path.basename(image.path)}}');
 
     final UploadTask uploadTask = ref.putFile(image);
-    String pictureUrl;
 
-    await uploadTask.then(
-      (taskSnapshot) async {
-        pictureUrl = await taskSnapshot.ref.getDownloadURL();
+    String pictureUrl = await uploadTask.then((taskSnapshot) async {
+       return await taskSnapshot.ref.getDownloadURL();
       },
     );
 
@@ -58,10 +60,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final userInfoProvider =
         Provider.of<UserInfoServices>(context, listen: false);
 
-    Users currentUser = userInfoProvider.user;
-    currentUser.profilePictureUrl = pictureUrl;
+    Users? currentUser = userInfoProvider.user;
+    currentUser?.profilePictureUrl = pictureUrl;
 
-    userInfoProvider.setUser(currentUser);
+    userInfoProvider.setUser(currentUser!);
 
     userInfoProvider.upateProfilePictureUrl();
   }
@@ -69,22 +71,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool visibilityName = true;
   bool visibilityFields = false;
 
+  void submitProfile() async {
+    final userInfoProvider = Provider.of<UserInfoServices>(context, listen: false);
+    Users? currentUser = userInfoProvider.user;
+    currentUser?.bio = bio;
+    userInfoProvider.setUser(currentUser!);
+
+    await UserDBServices.updateBio(currentUser);
+
+    setState(() {
+      visibilityFields = false;
+      visibilityName = true;
+    });
+  }
+
+  void shareapp() async {
+    await FlutterShare.share(
+        title: 'Friday: Your personal class assistant!',
+        text: 'Check out Friday: Your Personal Class Manager Assistant, It\'ll never let you miss another assignment deadline or upcoming test. Download from play store : https://play.google.com/store/apps/details?id=com.avinashkranjan.friday',
+        linkUrl: 'https://play.google.com/store/apps/details?id=com.avinashkranjan.friday',
+        chooserTitle: 'Friday!');
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).backgroundColor.withOpacity(0.8),
+      appBar: AppBar(elevation: 0,backgroundColor:  Theme.of(context).colorScheme.background.withOpacity(0.8),actions: [
+        PopupMenuButton<String>(
+          onSelected: (s) async {
+          },
+          itemBuilder: (BuildContext context) {
+            return {'Share App','Settings'}.map((String choice) {
+              return PopupMenuItem<String>(
+                value: choice,
+                child: Text(choice),
+                onTap: () {
+                  if(choice == 'Share App') {
+                  shareapp();
+                  }
+                  else {
+                    print('pencho');
+                    Navigator.of(this.context).push(MaterialPageRoute(builder: (context) => SettingsScreen()));
+                  }
+                },
+              );
+            }).toList();
+          },
+        ),
+      ],
+
+      centerTitle: true,),
+      backgroundColor: Theme.of(context).colorScheme.background.withOpacity(0.8),
       body: SingleChildScrollView(
         physics: AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
         child: Consumer<UserInfoServices>(
           builder: (context, userInfo, _) {
             Users _user;
-            if (userInfo.hasData) _user = userInfo.user;
+            if (userInfo.hasData) _user = userInfo.user!;
             return Stack(
               alignment: Alignment.center,
               children: [
                 Column(
                   children: [
-                    SizedBox(height: 0.15 * MediaQuery.of(context).size.height),
+            Text(
+            "Your Profile",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 30.0,
+                fontWeight: FontWeight.bold,
+              ),),
+                    SizedBox(height: 0.12 * MediaQuery.of(context).size.height),
                     Container(
                       margin: EdgeInsets.fromLTRB(15, 15, 15, 60),
                       padding: EdgeInsets.all(30),
@@ -107,7 +162,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               child: Visibility(
                                 visible: visibilityName,
                                 child: Text(
-                                  userInfo.hasData ? _user.name : "Loading...",
+                                  userInfo.hasData 
+                                  ? currentUser['name']
+                                  : "Loading...",
                                   style: TextStyle(
                                     fontSize: 20,
                                     color: Colors.blue[200],
@@ -119,33 +176,81 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           SizedBox(height: 20),
                           buildDetails(
                               "Email",
-                              userInfo.hasData ? _user.email : "Loading...",
+                              userInfo.hasData 
+                              ? currentUser['email'] 
+                              : "Loading...",
                               true),
+                           SizedBox(height: 20),
+                           buildDetails(
+                              "Bio",
+                               userInfo.hasData 
+                               ? currentUser['bio'] 
+                               ?? 'No bio available' : "Loading...",
+                               true),
                           SizedBox(height: 20),
+                          Visibility(
+                        visible: visibilityFields,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Bio',
+                              style: TextStyle(
+                                fontSize: 18,
+                                letterSpacing: 1.2,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Container(
+                              width: 200,
+                              child: TextField(
+                                decoration: InputDecoration(
+                                  focusedBorder: UnderlineInputBorder(
+                                    borderSide: BorderSide(color: kAuthThemeColor, width: 3),
+                                  ),
+                                  enabledBorder: UnderlineInputBorder(
+                                    borderSide: BorderSide(color: kAuthThemeColor, width: 3),
+                                  ),
+                                ),
+                                style: TextStyle(color: Colors.white),
+                                cursorColor: Colors.white,
+                                onChanged: (value) {
+                                  setState(() {
+                                    bio = value;
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                           buildDetails(
                               "College",
-                              userInfo.hasData
-                                  ? _user.university
-                                  : "Loading...",
+                                   userInfo.hasData 
+                                   ? currentUser['university'] 
+                                   : "Loading...",
                               true),
                           SizedBox(height: 20),
                           buildDetails(
                               "Course",
-                              userInfo.hasData ? _user.course : "Loading...",
+                              userInfo.hasData 
+                              ? currentUser['course'] 
+                              : "Loading...",
                               true),
                           SizedBox(height: 20),
                           buildDetails(
                               "Deptartment/Major",
-                              userInfo.hasData
-                                  ? _user.department
-                                  : "Loading...",
+                              userInfo.hasData 
+                              ? currentUser['department']
+                              : "Loading...",
                               true),
                           SizedBox(height: 20),
                           buildDetails(
                               "Current Academic Year",
-                              userInfo.hasData
-                                  ? _user.year.toString()
-                                  : "Loading...",
+                               userInfo.hasData
+                               ? currentUser['year'].toString()
+                               : "Loading...",
                               true),
                           SizedBox(height: 20),
                           Row(
@@ -154,17 +259,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               buildDetails(
                                   "Gender",
                                   userInfo.hasData
-                                      ? enumToString(_user.gender)
-                                      : "Loading...",
+                                   ? enumToString(currentUser['gender'])
+                                   : "Loading...",
                                   true),
                               SizedBox(width: 20),
                               Visibility(
                                 visible: !visibilityFields,
                                 child: buildDetails(
                                     "Age",
-                                    userInfo.hasData
-                                        ? _user.age.toString()
-                                        : "Loading...",
+                                    userInfo.hasData 
+                                    ? currentUser['age'].toString() 
+                                    : "Loading...",
                                     visibilityName),
                               ),
                               Visibility(
@@ -204,9 +309,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         onChanged: (value) {
                                           setState(() async {
                                             if (value != '') {
-                                              _user.age = int.parse(value);
+                                              currentUser['age'] = int.parse(value);
                                               await UserDBServices.updateAge(
-                                                  _user.uid, int.parse(value));
+                                                  currentUser['uid'], int.parse(value));
                                             }
                                           });
                                         },
@@ -251,11 +356,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 }
                               },
                               style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: Colors.red),
+                                foregroundColor: Colors.transparent, side: BorderSide(color: Colors.red),
                                 padding: EdgeInsets.symmetric(
                                     horizontal: 20, vertical: 10),
                                 shape: StadiumBorder(),
-                                primary: Colors.transparent,
                               ),
                               child: Text(
                                 "Log out",
@@ -275,12 +379,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   top: 0.1 * MediaQuery.of(context).size.height,
                   child: CircleAvatar(
                     radius: profilePictureDiameter / 2,
-                    backgroundImage:
-                        _user != null && _user.profilePictureUrl.isNotEmpty
-                            ? NetworkImage(_user.profilePictureUrl)
-                            : AssetImage("assets/images/profile_pic.jpg"),
+                    backgroundImage: currentUser != null &&
+                           currentUser['profilePictureUrl'] != null && 
+                           currentUser['profilePictureUrl'].isNotEmpty
+                      ? NetworkImage(currentUser['profilePictureUrl'])
+                      : AssetImage("assets/images/profile_pic.jpg") as ImageProvider<Object>?,
                     backgroundColor: Colors.transparent,
-                    foregroundColor: Theme.of(context).backgroundColor,
+                    foregroundColor: Theme.of(context).colorScheme.background,
                   ),
                 ),
                 Positioned(
@@ -302,6 +407,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   right: MediaQuery.of(context).size.width * 0.07,
                   child: IconButton(
                     onPressed: () {
+                      if (visibilityFields) {
+                        submitProfile();
+                      }
                       setState(() {
                         visibilityFields = !visibilityFields;
                         visibilityName = !visibilityName;
@@ -338,8 +446,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onChanged: (value) {
                           setState(() async {
                             if (value != '') {
-                              _user.name = value;
-                              await UserDBServices.updateName(_user.uid, value);
+                              currentUser['name'] = value;
+                              await UserDBServices.updateName(currentUser['uid'], value);
                             }
                           });
                         },

@@ -1,6 +1,7 @@
 import 'package:flutter_icons_null_safety/flutter_icons_null_safety.dart';
 import 'package:friday/models/alert.dart';
 import 'package:friday/models/homework.dart';
+import 'package:friday/screens/favourites_screen.dart';
 import 'package:friday/widgets/countdown_painter.dart';
 import 'package:flutter/material.dart';
 import 'package:friday/constants.dart';
@@ -8,20 +9,91 @@ import 'package:friday/widgets/header.dart';
 import 'package:friday/widgets/recents_alerts.dart';
 import 'package:friday/widgets/recents_homeworks.dart';
 import 'package:intl/intl.dart';
+import 'package:charts_flutter/flutter.dart' as charts;
+import 'package:flutter/services.dart' show rootBundle;
+import 'chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback openHomeworkPage;
-  HomeScreen({required this.openHomeworkPage});
+  final VoidCallback openSettingsPage;
+  HomeScreen({required this.openHomeworkPage, required this.openSettingsPage});
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+ List<AssignmentData> assignmentData = [];
+
+  @override
+  void initState() {
+    WidgetsBinding.instance.addObserver(this);
+    super.initState();
+    fetchAssignmentData().then((data) {
+      setState(() {
+        assignmentData = data;
+      });
+    });
+  }
+
+ @override
+ void dispose() {
+   WidgetsBinding.instance.removeObserver(this);
+   super.dispose();
+ }
+
+ @override
+ void didChangeAppLifecycleState(AppLifecycleState state) {
+    print('chaltorahbeh');
+   if (state == AppLifecycleState.resumed) {
+     fetchAssignmentData().then((data) {
+       setState(() {
+         assignmentData = data;
+       });
+     });
+   }
+ }
+
+
+
+
+ Future<List<AssignmentData>> fetchAssignmentData() async {
+    String fileData = await rootBundle.loadString('assets/assignment_data.txt');
+
+    List<AssignmentData> assignmentDataList = fileData
+        .split('\n')
+        .map((line) {
+          List<String> values = line.split(',');
+          DateTime date = DateTime.parse(values[0]);
+          double score = double.parse(values[1]);
+          int assignmentNumber = int.parse(values[2]);
+          String subject = values[3];
+          Duration timeSpent = Duration(hours: int.parse(values[4]));
+          return AssignmentData(date, score, assignmentNumber, subject, timeSpent);
+        })
+        .toList();
+
+    return assignmentDataList;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      children: <Widget>[
-        Header(),
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background.withOpacity(0.8),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => ChatScreen()),
+          );
+        },
+        child: Icon(Icons.chat),
+        backgroundColor: Color.fromARGB(255, 83, 53, 231),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      body: ListView(
+        children: <Widget>[
+          Header(),
+      
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 30.0),
           child: GestureDetector(
@@ -54,7 +126,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-        SizedBox(height: 30.0),
+        SizedBox(height: 10,),
+        Center(child: TextButton(onPressed: () {
+          Navigator.of(context).push(MaterialPageRoute(builder: (context) => FavouritesScreen()));
+        },child: Text('SEE FAVOURITES', style: TextStyle(color: Theme.of(context).colorScheme.secondary),),),),
+        SizedBox(height: 15.0),
         Container(
           padding: EdgeInsets.all(35.0),
           decoration: BoxDecoration(
@@ -111,10 +187,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               SizedBox(height: 30.0),
+               ListTile(
+                leading: Icon(Icons.settings),
+                title: Text('Settings'),
+                onTap: () {
+                  widget.openSettingsPage();
+                },
+              ),
             ],
           ),
         ),
       ],
+      ),
     );
   }
 }
@@ -124,7 +208,7 @@ class DataSearch extends SearchDelegate<String> {
   ThemeData appBarTheme(BuildContext context) {
     return Theme.of(context).copyWith(
       appBarTheme: AppBarTheme(
-        backgroundColor: Theme.of(context).primaryColor,
+        backgroundColor: Colors.black,
         titleTextStyle: TextStyle(color: kTextColor),
       ),
     );
@@ -467,12 +551,77 @@ class DataSearch extends SearchDelegate<String> {
       style: ElevatedButton.styleFrom(
         shape: CircleBorder(
           side: BorderSide(color: Theme.of(context).colorScheme.secondary),
-        ),
-        primary: homework.isDone
+        ), backgroundColor: homework.isDone
             ? Theme.of(context).colorScheme.secondary
             : Colors.transparent,
       ),
       child: homework.isDone ? Icon(Icons.check, color: Colors.white) : null,
     );
   }
+}
+
+class ProgressChart extends StatelessWidget {
+  final List<AssignmentData> data;
+
+  ProgressChart({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          "Progress Line",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        SizedBox(height: 10.0),
+        Expanded(
+          child: charts.TimeSeriesChart(
+            _createChartSeries(),
+            animate: true,
+          ),
+        ),
+        SizedBox(height: 10.0),
+        Text(
+          "Score ReferenceLine",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<charts.Series<AssignmentData, DateTime>> _createChartSeries() {
+    return [
+      charts.Series(
+        id: 'Assignment Progress',
+        data: data,
+        domainFn: (AssignmentData assignment, _) => assignment.date,
+        measureFn: (AssignmentData assignment, _) => assignment.score,
+        colorFn: (_, __) => charts.MaterialPalette.blue.shadeDefault,
+      ),
+    ];
+  }
+}
+
+class AssignmentData {
+  final DateTime date;
+  final double score;
+  final int assignmentNumber;
+  final String subject;
+  final Duration timeSpent;
+
+  AssignmentData(
+    this.date,
+    this.score,
+    this.assignmentNumber,
+    this.subject,
+    this.timeSpent,
+  );
 }

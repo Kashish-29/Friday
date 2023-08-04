@@ -8,6 +8,7 @@ import '../screens/profile_screen.dart';
 import '../screens/classes_screen.dart';
 import '../screens/homework_screen.dart';
 import '../screens/alert_screen.dart';
+import '../screens/settings_screen.dart';
 import '../widgets/animated_nav_bar.dart';
 
 class BottomNavigation extends StatefulWidget {
@@ -24,6 +25,7 @@ class _BottomNavigationState extends State<BottomNavigation> {
   late AlertScreen _alertScreen;
   late ClassesScreen _classesScreen;
   late ProfileScreen _profileScreen;
+  late SettingsScreen _settingsScreen;
   final PageController _pageController = PageController(initialPage: 0);
 
   _setCurrentPage({required int index}) {
@@ -38,18 +40,20 @@ class _BottomNavigationState extends State<BottomNavigation> {
   void initState() {
     super.initState();
     _homeScreen = HomeScreen(
-      openHomeworkPage: openHomeworkPage,
+      openHomeworkPage: openHomeworkPage, openSettingsPage: () {  },
     );
     _classesScreen = ClassesScreen();
     _homeworkScreen = HomeworkScreen();
     _alertScreen = AlertScreen();
     _profileScreen = ProfileScreen();
+    _settingsScreen = SettingsScreen();
     _pages = [
       _homeScreen,
       _classesScreen,
       _homeworkScreen,
       _alertScreen, //TODO: Chats Page
       _profileScreen,
+      _settingsScreen
     ];
     _currentPage = _homeScreen;
   }
@@ -65,7 +69,7 @@ class _BottomNavigationState extends State<BottomNavigation> {
   Widget build(BuildContext context) {
     final navBar = Provider.of<BottomNavigationBarProvider>(context);
     return Scaffold(
-      backgroundColor: Theme.of(context).backgroundColor,
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: Stack(
         children: <Widget>[
           PageView(
@@ -113,7 +117,7 @@ class CustomBottomNavigator extends StatelessWidget {
       right: 0.0,
       child: Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).backgroundColor,
+          color: Theme.of(context).colorScheme.background,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(30.0),
             topRight: Radius.circular(30.0),
@@ -125,6 +129,7 @@ class CustomBottomNavigator extends StatelessWidget {
         child: Column(
           children: [
             BottomNavBar(
+              key: UniqueKey(),
               selectedIdx: selectedTab,
               selectedColor: Colors.white,
               unselectedColor: Colors.grey,

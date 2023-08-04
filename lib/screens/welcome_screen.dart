@@ -3,7 +3,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 ///Project Local Imports
 import 'package:friday/constants.dart';
+import 'package:friday/onboarding/introslider.dart';
 import 'package:friday/screens/login_page.dart';
+import 'package:is_first_run/is_first_run.dart';
 
 class WelcomeScreen extends StatefulWidget {
   @override
@@ -11,6 +13,18 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
+  late bool k;
+  Future<bool> isfirstrun() async{
+    k = await IsFirstRun.isFirstRun();
+    return k;
+  }
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    //isfirstrun();
+    k = true;
+  }
   @override
   Widget build(BuildContext context) {
     var textStyle = TextStyle(
@@ -28,7 +42,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               height: MediaQuery.of(context).size.height - 100,
               width: MediaQuery.of(context).size.width,
               decoration: BoxDecoration(
-                color: Theme.of(context).backgroundColor,
+                color: Theme.of(context).colorScheme.background,
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(50.0),
                   bottomRight: Radius.circular(50.0),
@@ -91,12 +105,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               right: 100.0,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  primary: Theme.of(context).colorScheme.secondary,
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
                   shape: StadiumBorder(),
                   padding: EdgeInsets.symmetric(vertical: 15),
                 ),
                 onPressed: () {
-                  Navigator.push(
+                  k?Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => OnBoardingPage()),
+                  ):Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => LoginPage()),
                   );

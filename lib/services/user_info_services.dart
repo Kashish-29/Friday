@@ -3,11 +3,11 @@ import 'package:friday/services/user_db_services.dart';
 import 'package:flutter/material.dart';
 
 class UserInfoServices extends ChangeNotifier {
-  Users _user;
+  Users? _user;
   bool hasData = false;
 
-  Users get user => _user;
-  Future<bool> fetchUserDetailsFromDatabase(context) async {
+  Users? get user => _user;
+  Future<bool> fetchUserDetailsFromDatabase(BuildContext context) async {
     // Write the code to fetch from Firestore Collection `users`
     bool isUserExists = await UserDBServices.fetchUserData(context);
     if (!isUserExists) {
@@ -18,32 +18,45 @@ class UserInfoServices extends ChangeNotifier {
   }
 
   Future<void> addUserToDatabase() async {
-    await UserDBServices.addUser(_user);
+     if (_user != null) {
+    await UserDBServices.addUser(_user!);
     notifyListeners();
   }
+}
 
   Future<void> upateProfilePictureUrl() async {
+     if (_user != null) {
     await UserDBServices.updateProfilePictureUrl(
-        _user.uid, _user.profilePictureUrl);
+        _user!.uid,
+        _user!.profilePictureUrl
+    );
     // notifyListeners();
   }
+}
 
-  void setUser(Users _usr) {
-    this._user = _usr;
+  void setUser(Users user) {
+    this._user = user;
     this.hasData = true;
     notifyListeners();
   }
 
   void setEssentialDetailsOfUser(String name, String email) {
-    this._user = Users.setEsssentialDetails(name, email);
+     if (_user != null) {
+    _user!.setEssentialDetails(name, email);
+  }
   }
 
-  void setAdditionalDetailsOfUser(String _course, String _dept, String _college,
-      int _year, Gender _gender, int _age,
-      [String _profilePicUrl]) {
-    this
-        ._user
-        .setAdditionalDetails(_course, _dept, _college, _year, _gender, _age);
+  void setAdditionalDetailsOfUser(
+    String _course, 
+    String _dept, 
+    String _college,
+    int _year, 
+    Gender _gender, 
+    int _age,
+    [String? _profilePicUrl]) {
+    if (_user != null) {
+    this._user!.setAdditionalDetails(_course, _dept, _college, _year, _gender, _age);
     notifyListeners();
   }
+ }
 }

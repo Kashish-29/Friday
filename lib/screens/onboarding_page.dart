@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-///Project Local Imports
+// Project Local Imports
 import 'package:friday/constants.dart';
 import 'package:friday/screens/login_page.dart';
 import 'package:friday/screens/signup_page.dart';
@@ -9,6 +9,8 @@ import 'package:friday/widgets/onboarding_canvas_design.dart';
 import 'package:friday/widgets/round_button.dart';
 import 'package:friday/services/googleAuthentication.dart';
 import 'package:friday/services/facebookAuthentication.dart';
+import 'package:friday/screens/phone_verification_screen.dart';
+import 'package:is_first_run/is_first_run.dart';
 
 class OnboardingPage extends StatefulWidget {
   @override
@@ -16,10 +18,26 @@ class OnboardingPage extends StatefulWidget {
 }
 
 class _OnboardingPageState extends State<OnboardingPage> {
+
+  late bool k;
+  
+  Future<bool> isfirstrun() async {
+    k = await IsFirstRun.isFirstRun();
+    return k;
+  }
+
+  @override
+  void initState() {
+    
+    super.initState();
+    isfirstrun();
+
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).backgroundColor,
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         child: Container(
           height: MediaQuery.of(context).size.height,
@@ -129,6 +147,20 @@ class _OnboardingPageState extends State<OnboardingPage> {
                             print("Facebook Authentication");
                             var _fbSignIn = FacebookAuth(context);
                             _fbSignIn.logInViaFacebook();
+                          },
+                        ),
+                        GestureDetector(
+                          child: Image.asset(
+                            "assets/images/phone.png",
+                            width: 48.0,
+                          ),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PhoneVerificationScreen(),
+                              ),
+                            );
                           },
                         ),
                       ],
